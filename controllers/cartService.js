@@ -160,7 +160,7 @@ exports.removeCartProduct = asyncHandler(async (req, res, next) => {
   const cart = await Cart.findOneAndUpdate(
     { cartOwner: req.user._id },
     {
-            $pull: { products: { product: itemId } },
+           $pull: { products: { _id: itemId } },
     },
     { new: true }
   )
