@@ -15,6 +15,10 @@ const setImageUrl = (doc) => {
     });
     doc.images = images;
   }
+    // Include titleAr if it exists
+  if (doc.titleAr) {
+    doc.titleAr = doc.titleAr;
+  }
 };
 
 exports.deleteOne = (Model) =>
