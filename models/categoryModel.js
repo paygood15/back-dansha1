@@ -11,7 +11,7 @@ const categorySchema = new mongoose.Schema(
       minlength: [3, 'Too short category name'],
       maxlength: [32, 'Too long category name'],
     },
-        nameAR: {
+        nameAr: {
       type: String,
       trim: true,
       // index: true,
