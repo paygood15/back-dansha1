@@ -26,6 +26,11 @@ const productSchema = new mongoose.Schema(
       required: [true, 'Product description is required'],
       maxlength: [2000, 'Too long description'],
     },
+      descriptionAr: {
+      type: String,
+    
+      maxlength: [2000, 'Too long description'],
+    },
     quantity: {
       type: Number,
       required: [true, 'Product quantity is required'],
