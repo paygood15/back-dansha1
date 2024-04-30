@@ -86,12 +86,12 @@ exports.updateCartProductCount = asyncHandler(async (req, res, next) => {
   const cart = await Cart.findOne({ cartOwner: req.user._id })
     .populate({
       path: 'products.product',
-      select: 'title imageCover ratingsAverage brand category ',
+      select: 'title titleAr imageCover ratingsAverage brand category ',
       populate: { path: 'brand', select: 'name -_id', model: 'Brand' },
     })
     .populate({
       path: 'products.product',
-      select: 'title imageCover ratingsAverage brand category',
+      select: 'title titleAr imageCover ratingsAverage brand category',
       populate: { path: 'category', select: 'name -_id', model: 'Category' },
     });
   if (!cart) {
@@ -136,7 +136,7 @@ exports.getLoggedUserCart = asyncHandler(async (req, res, next) => {
     })
     .populate({
       path: 'products.product',
-      select: 'title imageCover ratingsAverage brand category',
+      select: 'title titleAr imageCover ratingsAverage brand category',
       populate: { path: 'category', select: 'name -_id', model: 'Category' },
     });
 
@@ -166,12 +166,12 @@ exports.removeCartProduct = asyncHandler(async (req, res, next) => {
   )
     .populate({
       path: 'products.product',
-      select: 'title imageCover ratingsAverage brand category ',
+      select: 'title titleAr imageCover ratingsAverage brand category ',
       populate: { path: 'brand', select: 'name -_id', model: 'Brand' },
     })
     .populate({
       path: 'products.product',
-      select: 'title imageCover ratingsAverage brand category',
+      select: 'title titleAr imageCover ratingsAverage brand category',
       populate: { path: 'category', select: 'name -_id', model: 'Category' },
     });
 
@@ -205,12 +205,12 @@ exports.applyCouponToCart = asyncHandler(async (req, res, next) => {
   const cart = await Cart.findOne({ cartOwner: req.user._id })
     .populate({
       path: 'products.product',
-      select: 'title imageCover ratingsAverage brand category ',
+      select: 'title titleAr imageCover ratingsAverage brand category ',
       populate: { path: 'brand', select: 'name -_id', model: 'Brand' },
     })
     .populate({
       path: 'products.product',
-      select: 'title imageCover ratingsAverage brand category',
+      select: 'title titleAr imageCover ratingsAverage brand category',
       populate: { path: 'category', select: 'name -_id', model: 'Category' },
     });
 
