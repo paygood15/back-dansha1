@@ -39,9 +39,10 @@ app.enable("trust proxy");
 
 // Add hook here before we call body parser, because stripe will send data in the body in form raw
 app.post(
-  "/webhook-checkout",
+  "/api/acceptance/post_pay",
   // express.raw({ type: 'application/json' }),
   bodyParser.raw({ type: "application/json" }),
+  // verifyWebhookSignature,
   webhookCheckout
 );
 
