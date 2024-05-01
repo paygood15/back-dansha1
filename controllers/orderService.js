@@ -246,9 +246,9 @@ exports.webhookCheckout = asyncHandler(async (req, res, next) => {
   if (obj.success) {
     console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
 
-    // console.log("Transaction successful:", obj.id);
-    // ...
-    // createOrderCheckout()
+     console.log("Transaction successful:", obj.id);
+    
+     createOrderCheckout()
   } else {
     console.log("Transaction failed or canceled:", obj.id);
   }
