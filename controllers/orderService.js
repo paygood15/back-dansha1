@@ -170,7 +170,7 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         order_id: orderResponse.data.id,
         billing_data: req.body.shippingAddress,
         currency: "EGP",
-        integration_id:"4558583", // استبدل بمعرف التكامل الخاص بك
+        integration_id: 4558583, // استبدل بمعرف التكامل الخاص بك
       }
     );
     res.status(200).json({
