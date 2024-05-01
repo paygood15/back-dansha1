@@ -1,12 +1,14 @@
-const asyncHandler = require('express-async-handler');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const asyncHandler = require("express-async-handler");
+const crypto = require("crypto");
+const axios = require("axios");
+const ApiError = require("../utils/apiError");
+const factory = require("./handlersFactory");
+const User = require("../models/userModel");
+const Product = require("../models/productModel");
+const Cart = require("../models/cartModel");
+const Order = require("../models/orderModel");
 
-const ApiError = require('../utils/apiError');
-const factory = require('./handlersFactory');
-const User = require('../models/userModel');
-const Product = require('../models/productModel');
-const Cart = require('../models/cartModel');
-const Order = require('../models/orderModel');
+// Paymob API Key (يجب استبدالها بمفتاح API الخاص بك)
 
 // @desc    Create new order
 // @route   POST /api/orders/cartId
@@ -53,7 +55,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
     await Cart.findByIdAndDelete(req.params.cartId);
   }
 
-  res.status(201).json({ status: 'success', data: order });
+  res.status(201).json({ status: "success", data: order });
 });
 
 // @desc    Get Specific order
@@ -62,7 +64,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
 exports.getSpecificOrder = factory.getOne(Order);
 
 exports.filterOrdersForLoggedUser = asyncHandler(async (req, res, next) => {
-  if (req.user.role === 'user') req.filterObject = { user: req.user._id };
+  if (req.user.role === "user") req.filterObject = { user: req.user._id };
   next();
 });
 
@@ -88,7 +90,7 @@ exports.updateOrderToPaid = asyncHandler(async (req, res, next) => {
 
   const updatedOrder = await order.save();
   res.status(200).json({
-    status: 'Success',
+    status: "Success",
     data: updatedOrder,
   });
 });
@@ -109,78 +111,112 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
   order.deliveredAt = Date.now();
 
   const updatedOrder = await order.save();
-  res.status(200).json({ status: 'Success', data: updatedOrder });
+  res.status(200).json({ status: "Success", data: updatedOrder });
 });
 
+//
+//
+//
+//
+//
+//
+//
+//
+// From here I started working on the code. Do not change anything in the previous code that has nothing to do with Paymob
 // @desc    Create order checkout session
 // @route   GET /api/orders/:cartId
 // @access  Private/User
 exports.checkoutSession = asyncHandler(async (req, res, next) => {
-  // 1) Get the currently cart
+  // get current cartId
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
     return next(
-      new ApiError(`There is no cart for this user :${req.user._id}`, 404)
+      new ApiError(`لا يوجد سلة لهذا المستخدم: ${req.user._id}`, 404)
     );
   }
 
-  // 2) Get cart price, Check if there is coupon apply
+  // handle totalPrice if there is a coupon
   const cartPrice = cart.totalAfterDiscount
     ? cart.totalAfterDiscount
     : cart.totalCartPrice;
 
-  // 3) Create checkout session
-  const session = await stripe.checkout.sessions.create({
-    line_items: [
+  // paymob int
+  try {
+    const authResponse = await axios.post(
+      "https://accept.paymob.com/api/auth/tokens",
       {
-        name: req.user.name,
-        amount: cartPrice * 100,
-        currency: 'egp',
-        quantity: 1,
-      },
-    ],
-    mode: 'payment',
-    // success_url: `${req.protocol}://${req.get('host')}/orders`,
-    success_url: `http://localhost:3000/user/allorders`,
-    // cancel_url: `${req.protocol}://${req.get('host')}/cart`,
-    cancel_url: `http://localhost:3000/cart`,
-    customer_email: req.user.email,
-    client_reference_id: req.params.cartId,
-    metadata: req.body.shippingAddress,
-  });
+        api_key: process.env.PAYMOB_API_KEY,
+      }
+    );
+    const authToken = authResponse.data.token;
+    const orderResponse = await axios.post(
+      "https://accept.paymob.com/api/ecommerce/orders",
+      {
+        auth_token: authToken,
+        delivery_needed: false,
+        amount_cents: cartPrice * 100,
+        currency: "EGP",
+        items: [],
+      }
+    );
+    console.log(req.body.shippingAddress);
 
-  // res.redirect(303, session.url);
-
-  // 3) Create session as response
-  res.status(200).json({
-    status: 'success',
-    session,
-  });
+    const paymentKeyResponse = await axios.post(
+      "https://accept.paymob.com/api/acceptance/payment_keys",
+      {
+        auth_token: authToken,
+        amount_cents: cartPrice * 100,
+        expiration: 3600,
+        order_id: orderResponse.data.id,
+        billing_data: req.body.shippingAddress,
+        currency: "EGP",
+        integration_id: process.env.YOUR_INTEGRATION_ID, // استبدل بمعرف التكامل الخاص بك
+      }
+    );
+    res.status(200).json({
+      link: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token}`,
+    });
+  } catch (error) {
+    console.error("checkOutSession fnc error", error.message);
+    return next(new ApiError("checkOutSession fnc error", 500));
+  }
 });
-
 const createOrderCheckout = async (session) => {
-  // 1) Get needed data from session
+  //  get data from session
   const cartId = session.client_reference_id;
   const checkoutAmount = session.display_items[0].amount / 100;
-  const shippingAddress = session.metadata;
+  // const shippingAddress = session.metadata;
 
-  // 2) Get Cart and User
+  // get user cart and user data from session
   const cart = await Cart.findById(cartId);
   const user = await User.findOne({ email: session.customer_email });
 
-  //3) Create order
+  //  create order
   const order = await Order.create({
     user: user._id,
     cartItems: cart.products,
-    shippingAddress,
+    billing_data: {
+      apartment: "803",
+      email: "claudette09@exa.com",
+      floor: "42",
+      first_name: "Clifford",
+      street: "Ethan Land",
+      building: "8028",
+      phone_number: "+86(8)9135210487",
+      shipping_method: "PKG",
+      postal_code: "01898",
+      city: "Jaskolskiburgh",
+      country: "CR",
+      last_name: "Nicolas",
+      state: "Utah",
+    },
     totalOrderPrice: checkoutAmount,
-    paymentMethodType: 'card',
+    paymentMethodType: "card",
     isPaid: true,
     paidAt: Date.now(),
   });
 
-  // 4) After creating order decrement product quantity, increment sold
-  // Performs multiple write operations with controls for order of execution.
+  //  order Handle
   if (order) {
     const bulkOption = cart.products.map((item) => ({
       updateOne: {
@@ -191,30 +227,42 @@ const createOrderCheckout = async (session) => {
 
     await Product.bulkWrite(bulkOption, {});
 
-    // 5) Clear cart
+    // Delete Cart
     await Cart.findByIdAndDelete(cart._id);
   }
 };
 
-// @desc    This webhook will run when stipe payment successfully paid
-// @route   PUT /webhook-checkout
-// @access  From stripe
-exports.webhookCheckout = (req, res, next) => {
-  const signature = req.headers['stripe-signature'].toString();
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    return res.status(400).send(`Webhook error: ${err.message}`);
-  }
+exports.webhookCheckout = asyncHandler(async (req, res, next) => {
+  //New Test
 
-  if (event.type === 'checkout.session.completed') {
-    createOrderCheckout(event.data.object);
-  }
+  const buffer = req.body;
+  const BodyToString = buffer.toString();
 
-  res.status(200).json({ received: true });
-};
+  const jsonObject = JSON.parse(BodyToString);
+  console.log(" req.body======> ", jsonObject);
+
+  const { obj } = jsonObject;
+
+  if (obj.success) {
+    console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
+
+    // console.log("Transaction successful:", obj.id);
+    // ...
+    // createOrderCheckout()
+  } else {
+    console.log("Transaction failed or canceled:", obj.id);
+  }
+  const testBody = req.query;
+  const testBody2 = req.headers;
+  if (testBody) {
+    const testBodyToString = testBody.toString();
+    const testJsonObject = JSON.parse(testBodyToString);
+    console.log(" testBody======> ", testJsonObject);
+  }
+  if (testBody2) {
+    const testBodyToString2 = testBody2.toString();
+    const testJsonObject2 = JSON.parse(testBodyToString2);
+    console.log(" testBody2======> ", testJsonObject2);
+  }
+  res.status(200).send("Callback received");
+});
