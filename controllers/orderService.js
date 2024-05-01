@@ -9,12 +9,6 @@ const Cart = require("../models/cartModel");
 const Order = require("../models/orderModel");
 
 // Paymob API Key (يجب استبدالها بمفتاح API الخاص بك)
-const API_KEY = "ZXlKaGJHY2lPaUpJVXpVeE1pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SmpiR0Z6Y3lJNklrMWxjbU5vWVc1MElpd2ljSEp2Wm1sc1pWOXdheUk2T1RjeE5qRTFMQ0p1WVcxbElqb2lhVzVwZEdsaGJDSjkuMkFONDEtSi00anZPVGlvN1BaRFA2TjEtcjFSRFR4VklxdmZHUmtnWkFFaFI3QW1sZ1JHdzE0MEJ6RHdKcTBNZGNsVjFuNVkyRUhuV3ZMVHpLaXotakE="; // put your api key here
-
-const INTEGRATION_ID = "4558583";
-
-const ifameOne =
-  "https://accept.paymob.com/api/acceptance/iframes/838828?payment_token="; // put your iframe id here dont use mine
 
 // @desc    Create new order
 // @route   POST /api/orders/cartId
@@ -151,7 +145,7 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     const authResponse = await axios.post(
       "https://accept.paymob.com/api/auth/tokens",
       {
-        api_key: API_KEY,
+        api_key: process.env.PAYMOB_API_KEY,
       }
     );
     const authToken = authResponse.data.token;
@@ -176,11 +170,11 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         order_id: orderResponse.data.id,
         billing_data: req.body.shippingAddress,
         currency: "EGP",
-        integration_id: INTEGRATION_ID, // استبدل بمعرف التكامل الخاص بك
+        integration_id: process.env.YOUR_INTEGRATION_ID, // استبدل بمعرف التكامل الخاص بك
       }
     );
     res.status(200).json({
-      link: `https://accept.paymob.com/api/acceptance/iframes/838828?payment_token=${paymentKeyResponse.data.token}`,
+      link: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token}`,
     });
   } catch (error) {
     console.error("checkOutSession fnc error", error.message);
