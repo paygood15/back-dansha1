@@ -176,10 +176,11 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       link: `https://accept.paymob.com/api/acceptance/iframes/838828?payment_token=${paymentKeyResponse.data.token}`,
     });
-  } catch (error) {
-    console.error("checkOutSession fnc error", error.message);
-    return next(new ApiError("checkOutSession fnc error", 500));
-  }
+} catch (error) {
+    console.error("Error in checkoutSession function:", error);
+    return next(new ApiError("An error occurred in checkoutSession function", 500));
+}
+
 });
 const createOrderCheckout = async (session) => {
   //  get data from session
