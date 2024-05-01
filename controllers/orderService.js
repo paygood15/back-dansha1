@@ -171,23 +171,21 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
       "https://accept.paymob.com/api/acceptance/payment_keys",
       {
         auth_token: authToken,
-        delivery_needed: false,
         amount_cents: cartPrice * 100,
         expiration: 3600,
         order_id: orderResponse.data.id,
         billing_data: req.body.shippingAddress,
         currency: "EGP",
-        integration_id:INTEGRATION_ID , // استبدل بمعرف التكامل الخاص بك
+        integration_id: INTEGRATION_ID, // استبدل بمعرف التكامل الخاص بك
       }
     );
     res.status(200).json({
       link: `https://accept.paymob.com/api/acceptance/iframes/838828?payment_token=${paymentKeyResponse.data.token}`,
     });
-} catch (error) {
-    console.error("Error in checkoutSession function:", error);
-    return next(new ApiError("An error occurred in checkoutSession function", 500));
-}
-
+  } catch (error) {
+    console.error("checkOutSession fnc error", error.message);
+    return next(new ApiError("checkOutSession fnc error", 500));
+  }
 });
 const createOrderCheckout = async (session) => {
   //  get data from session
@@ -223,7 +221,7 @@ const createOrderCheckout = async (session) => {
     isPaid: true,
     paidAt: Date.now(),
   });
-console.log("ahmed");
+
   //  order Handle
   if (order) {
     const bulkOption = cart.products.map((item) => ({
@@ -254,9 +252,9 @@ exports.webhookCheckout = asyncHandler(async (req, res, next) => {
   if (obj.success) {
     console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
 
-     console.log("Transaction successful:", obj.id);
-    
-     createOrderCheckout()
+    // console.log("Transaction successful:", obj.id);
+    // ...
+    // createOrderCheckout()
   } else {
     console.log("Transaction failed or canceled:", obj.id);
   }
