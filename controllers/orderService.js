@@ -171,6 +171,7 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
       "https://accept.paymob.com/api/acceptance/payment_keys",
       {
         auth_token: authToken,
+        delivery_needed: false,
         amount_cents: cartPrice * 100,
         expiration: 3600,
         order_id: orderResponse.data.id,
