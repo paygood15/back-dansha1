@@ -215,7 +215,7 @@ const createOrderCheckout = async (session) => {
     isPaid: true,
     paidAt: Date.now(),
   });
-
+console.log("ahmed");
   //  order Handle
   if (order) {
     const bulkOption = cart.products.map((item) => ({
