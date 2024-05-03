@@ -173,9 +173,26 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         integration_id: process.env.YOUR_INTEGRATION_ID, // استبدل بمعرف التكامل الخاص بك
       }
     );
-    res.status(200).json({
-      link: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token}`,
-    });
+
+    if (paymentKeyResponse.data.token) {
+      // Create the order checkout session
+      await createOrderCheckout(req.body);
+
+      // Call webhookCheckout after creating the order
+      await webhookCheckout(req.body);
+
+      // Clear cart
+      await Cart.findByIdAndDelete(req.params.cartId);
+
+      // Return success response with payment link
+      res.status(200).json({
+        success: true,
+        link: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token}`,
+      });
+    } else {
+      // Return error response if payment token is not received
+      return next(new ApiError("Failed to generate payment token", 500));
+    }
   } catch (error) {
     console.error("checkOutSession fnc error", error.message);
     return next(new ApiError("checkOutSession fnc error", 500));
@@ -233,36 +250,49 @@ const createOrderCheckout = async (session) => {
 };
 
 exports.webhookCheckout = asyncHandler(async (req, res, next) => {
-  //New Test
+  try {
+    const buffer = req.body;
+    const BodyToString = buffer.toString();
+    const jsonObject = JSON.parse(BodyToString);
+    console.log("req.body======> ", jsonObject);
 
-  const buffer = req.body;
-  const BodyToString = buffer.toString();
+    const { obj } = jsonObject;
+    if (!obj) {
+      // لا يوجد كائن في الجسم، يتم إرسال استجابة غير صالحة
+      return res.status(400).send("Invalid request body");
+    }
 
-  const jsonObject = JSON.parse(BodyToString);
-  console.log(" req.body======> ", jsonObject);
+    if (obj.success) {
+      console.log("Transaction successful, obj:", obj);
+      // إذا كان الدفع ناجحًا، يجب عليك تحديث حالة الطلب إلى مدفوع
+      const orderId = obj.id; // قم بالحصول على معرف الطلب من الإشعار
+      const order = await Order.findById(orderId);
+      if (!order) {
+        return next(new ApiError(`Order not found: ${orderId}`, 404));
+      }
+      order.isPaid = true;
+      order.paidAt = Date.now();
+      await order.save();
 
-  const { obj } = jsonObject;
+      // يمكنك هنا إرسال استجابة بنجاح
+      res.status(200).send("Payment successful");
+    } else {
+      console.log("Transaction failed or canceled:", obj.id);
+      // إذا فشل الدفع أو تم إلغاؤه، يمكنك تنفيذ الإجراء المناسب هنا
+      // على سبيل المثال، تحديث حالة الطلب لإظهار أن الدفع فشل
+      const orderId = obj.id; // قم بالحصول على معرف الطلب من الإشعار
+      const order = await Order.findById(orderId);
+      if (!order) {
+        return next(new ApiError(`Order not found: ${orderId}`, 404));
+      }
+      order.isPaid = false;
+      await order.save();
 
-  if (obj.success) {
-    console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
-
-    // console.log("Transaction successful:", obj.id);
-    // ...
-    createOrderCheckout()
-  } else {
-    console.log("Transaction failed or canceled:", obj.id);
+      // يمكنك هنا إرسال استجابة بفشل الدفع
+      res.status(200).send("Payment failed or canceled");
+    }
+  } catch (error) {
+    console.error("webhookCheckout function error:", error.message);
+    return next(new ApiError("webhookCheckout function error", 500));
   }
-  const testBody = req.query;
-  const testBody2 = req.headers;
-  if (testBody) {
-    const testBodyToString = testBody.toString();
-    const testJsonObject = JSON.parse(testBodyToString);
-    console.log(" testBody======> ", testJsonObject);
-  }
-  if (testBody2) {
-    const testBodyToString2 = testBody2.toString();
-    const testJsonObject2 = JSON.parse(testBodyToString2);
-    console.log(" testBody2======> ", testJsonObject2);
-  }
-  res.status(200).send("Callback received");
 });
