@@ -258,37 +258,37 @@ const createOrderCheckout = async (session) => {
   }
 };
 
-// exports.webhookCheckout = asyncHandler(async (req, res, next) => {
-//   //New Test
+exports.webhookCheckout = asyncHandler(async (req, res, next) => {
+  //New Test
 
-//   const buffer = req.body;
-//   const BodyToString = buffer.toString();
+  const buffer = req.body;
+  const BodyToString = buffer.toString();
 
-//   const jsonObject = JSON.parse(BodyToString);
-//   console.log(" req.body======> ", jsonObject);
+  const jsonObject = JSON.parse(BodyToString);
+  console.log(" req.body======> ", jsonObject);
 
-//   const { obj } = jsonObject;
+  const { obj } = jsonObject;
 
-//   if (obj.success) {
-//     console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
+  if (obj.success) {
+    console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
 
-//      console.log("Transaction successful:", obj.id);
+     console.log("Transaction successful:", obj.id);
     
-//      createOrderCheckout()
-//   } else {
-//     console.log("Transaction failed or canceled:", obj.id);
-//   }
-//   const testBody = req.query;
-//   const testBody2 = req.headers;
-//   if (testBody) {
-//     const testBodyToString = testBody.toString();
-//     const testJsonObject = JSON.parse(testBodyToString);
-//     console.log(" testBody======> ", testJsonObject);
-//   }
-//   if (testBody2) {
-//     const testBodyToString2 = testBody2.toString();
-//     const testJsonObject2 = JSON.parse(testBodyToString2);
-//     console.log(" testBody2======> ", testJsonObject2);
-//   }
-//   res.status(200).send("Callback received");
-// });
+     createOrderCheckout()
+  } else {
+    console.log("Transaction failed or canceled:", obj.id);
+  }
+  const testBody = req.query;
+  const testBody2 = req.headers;
+  if (testBody) {
+    const testBodyToString = testBody.toString();
+    const testJsonObject = JSON.parse(testBodyToString);
+    console.log(" testBody======> ", testJsonObject);
+  }
+  if (testBody2) {
+    const testBodyToString2 = testBody2.toString();
+    const testJsonObject2 = JSON.parse(testBodyToString2);
+    console.log(" testBody2======> ", testJsonObject2);
+  }
+  res.status(200).send("Callback received");
+});
