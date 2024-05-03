@@ -207,56 +207,56 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     return next(new ApiError("checkOutSession fnc error", 500));
   }
 });
-// const createOrderCheckout = async (session) => {
-//   //  get data from session
-//   const cartId = session.client_reference_id;
-//   const checkoutAmount = session.display_items[0].amount / 100;
-//   // const shippingAddress = session.metadata;
+const createOrderCheckout = async (session) => {
+  //  get data from session
+  const cartId = session.client_reference_id;
+  const checkoutAmount = session.display_items[0].amount / 100;
+  // const shippingAddress = session.metadata;
 
-//   // get user cart and user data from session
-//   const cart = await Cart.findById(cartId);
-//   const user = await User.findOne({ email: session.customer_email });
+  // get user cart and user data from session
+  const cart = await Cart.findById(cartId);
+  const user = await User.findOne({ email: session.customer_email });
 
-//   //  create order
-//   const order = await Order.create({
-//     user: user._id,
-//     cartItems: cart.products,
-//     billing_data: {
-//       apartment: "803",
-//       email: "claudette09@exa.com",
-//       floor: "42",
-//       first_name: "Clifford",
-//       street: "Ethan Land",
-//       building: "8028",
-//       phone_number: "+86(8)9135210487",
-//       shipping_method: "PKG",
-//       postal_code: "01898",
-//       city: "Jaskolskiburgh",
-//       country: "CR",
-//       last_name: "Nicolas",
-//       state: "Utah",
-//     },
-//     totalOrderPrice: checkoutAmount,
-//     paymentMethodType: "card",
-//     isPaid: true,
-//     paidAt: Date.now(),
-//   });
+  //  create order
+  const order = await Order.create({
+    user: user._id,
+    cartItems: cart.products,
+    billing_data: {
+      apartment: "803",
+      email: "claudette09@exa.com",
+      floor: "42",
+      first_name: "Clifford",
+      street: "Ethan Land",
+      building: "8028",
+      phone_number: "+86(8)9135210487",
+      shipping_method: "PKG",
+      postal_code: "01898",
+      city: "Jaskolskiburgh",
+      country: "CR",
+      last_name: "Nicolas",
+      state: "Utah",
+    },
+    totalOrderPrice: checkoutAmount,
+    paymentMethodType: "card",
+    isPaid: true,
+    paidAt: Date.now(),
+  });
 
-//   //  order Handle
-//   if (order) {
-//     const bulkOption = cart.products.map((item) => ({
-//       updateOne: {
-//         filter: { _id: item.product },
-//         update: { $inc: { quantity: -item.count, sold: +item.count } },
-//       },
-//     }));
+  //  order Handle
+  if (order) {
+    const bulkOption = cart.products.map((item) => ({
+      updateOne: {
+        filter: { _id: item.product },
+        update: { $inc: { quantity: -item.count, sold: +item.count } },
+      },
+    }));
 
-//     await Product.bulkWrite(bulkOption, {});
+    await Product.bulkWrite(bulkOption, {});
 
-//     // Delete Cart
-//     await Cart.findByIdAndDelete(cart._id);
-//   }
-// };
+    // Delete Cart
+    await Cart.findByIdAndDelete(cart._id);
+  }
+};
 
 // exports.webhookCheckout = asyncHandler(async (req, res, next) => {
 //   //New Test
