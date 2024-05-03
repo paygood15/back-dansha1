@@ -140,6 +140,29 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     ? cart.totalAfterDiscount
     : cart.totalCartPrice;
 
+    const order = await Order.create({
+      user: req.user._id,
+      cartItems: cart.products,
+      shippingAddress: req.body.shippingAddress,
+      totalOrderPrice: taxPrice + shippingPrice + cartPrice,
+    });
+
+
+    if (order) {
+      const bulkOption = cart.products.map((item) => ({
+        updateOne: {
+          filter: { _id: item.product },
+          update: { $inc: { quantity: -item.count, sold: +item.count } },
+        },
+      }));
+  
+      await Product.bulkWrite(bulkOption, {});
+  
+      // 5) Clear cart
+      await Cart.findByIdAndDelete(req.params.cartId);
+      console.log("del done");
+    }
+
   // paymob int
   try {
     const authResponse = await axios.post(
@@ -246,9 +269,9 @@ exports.webhookCheckout = asyncHandler(async (req, res, next) => {
   if (obj.success) {
     console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
 
-    // console.log("Transaction successful:", obj.id);
-    // ...
-    // createOrderCheckout()
+     console.log("Transaction successful:", obj.id);
+    
+     createOrderCheckout()
   } else {
     console.log("Transaction failed or canceled:", obj.id);
   }
