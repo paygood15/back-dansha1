@@ -41,10 +41,12 @@ categorySchema.index({ name: 1 });
 
 const setImageUrl = (doc) => {
   if (doc.image && !doc.image.includes(process.env.BASE_URL)) {
-    const imageUrl = ${process.env.BASE_URL}/categories/${doc.image};
+    const imageUrl = process.env.BASE_URL + '/categories/' + doc.image;
     doc.image = imageUrl;
   }
 };
+
+
 
 
 categorySchema.post('init', (doc) => {
