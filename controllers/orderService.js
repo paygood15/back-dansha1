@@ -127,6 +127,9 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 // @route   GET /api/orders/:cartId
 // @access  Private/User
 exports.checkoutSession = asyncHandler(async (req, res, next) => {
+
+    const taxPrice = 0;
+  const shippingPrice = 0;
   // get current cartId
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
