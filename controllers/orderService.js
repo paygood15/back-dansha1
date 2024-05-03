@@ -114,6 +114,56 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "Success", data: updatedOrder });
 });
 
+
+exports.webhookCheckout = asyncHandler(async (req, res, next) => {
+  try {
+    const buffer = req.body;
+    const BodyToString = buffer.toString();
+    const jsonObject = JSON.parse(BodyToString);
+    console.log("req.body======> ", jsonObject);
+
+    const { obj } = jsonObject;
+    if (!obj) {
+      // لا يوجد كائن في الجسم، يتم إرسال استجابة غير صالحة
+      return res.status(400).send("Invalid request body");
+    }
+
+    if (obj.success) {
+      console.log("Transaction successful, obj:", obj);
+      // إذا كان الدفع ناجحًا، يجب عليك تحديث حالة الطلب إلى مدفوع
+      const orderId = obj.id; // قم بالحصول على معرف الطلب من الإشعار
+      const order = await Order.findById(orderId);
+      if (!order) {
+        return next(new ApiError(`Order not found: ${orderId}`, 404));
+      }
+      order.isPaid = true;
+      order.paidAt = Date.now();
+      await order.save();
+
+      // يمكنك هنا إرسال استجابة بنجاح
+      res.status(200).send("Payment successful");
+    } else {
+      console.log("Transaction failed or canceled:", obj.id);
+      // إذا فشل الدفع أو تم إلغاؤه، يمكنك تنفيذ الإجراء المناسب هنا
+      // على سبيل المثال، تحديث حالة الطلب لإظهار أن الدفع فشل
+      const orderId = obj.id; // قم بالحصول على معرف الطلب من الإشعار
+      const order = await Order.findById(orderId);
+      if (!order) {
+        return next(new ApiError(`Order not found: ${orderId}`, 404));
+      }
+      order.isPaid = false;
+      await order.save();
+
+      // يمكنك هنا إرسال استجابة بفشل الدفع
+      res.status(200).send("Payment failed or canceled");
+    }
+  } catch (error) {
+    console.error("webhookCheckout function error:", error.message);
+    return next(new ApiError("webhookCheckout function error", 500));
+  }
+});
+
+
 //
 //
 //
@@ -262,50 +312,3 @@ const createOrderCheckout = async (session) => {
   }
 };
 
-exports.webhookCheckout = asyncHandler(async (req, res, next) => {
-  try {
-    const buffer = req.body;
-    const BodyToString = buffer.toString();
-    const jsonObject = JSON.parse(BodyToString);
-    console.log("req.body======> ", jsonObject);
-
-    const { obj } = jsonObject;
-    if (!obj) {
-      // لا يوجد كائن في الجسم، يتم إرسال استجابة غير صالحة
-      return res.status(400).send("Invalid request body");
-    }
-
-    if (obj.success) {
-      console.log("Transaction successful, obj:", obj);
-      // إذا كان الدفع ناجحًا، يجب عليك تحديث حالة الطلب إلى مدفوع
-      const orderId = obj.id; // قم بالحصول على معرف الطلب من الإشعار
-      const order = await Order.findById(orderId);
-      if (!order) {
-        return next(new ApiError(`Order not found: ${orderId}`, 404));
-      }
-      order.isPaid = true;
-      order.paidAt = Date.now();
-      await order.save();
-
-      // يمكنك هنا إرسال استجابة بنجاح
-      res.status(200).send("Payment successful");
-    } else {
-      console.log("Transaction failed or canceled:", obj.id);
-      // إذا فشل الدفع أو تم إلغاؤه، يمكنك تنفيذ الإجراء المناسب هنا
-      // على سبيل المثال، تحديث حالة الطلب لإظهار أن الدفع فشل
-      const orderId = obj.id; // قم بالحصول على معرف الطلب من الإشعار
-      const order = await Order.findById(orderId);
-      if (!order) {
-        return next(new ApiError(`Order not found: ${orderId}`, 404));
-      }
-      order.isPaid = false;
-      await order.save();
-
-      // يمكنك هنا إرسال استجابة بفشل الدفع
-      res.status(200).send("Payment failed or canceled");
-    }
-  } catch (error) {
-    console.error("webhookCheckout function error:", error.message);
-    return next(new ApiError("webhookCheckout function error", 500));
-  }
-});
