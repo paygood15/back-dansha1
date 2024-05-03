@@ -114,37 +114,6 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "Success", data: updatedOrder });
 });
 
-
-const webhookCheckout = async (req) => {
-  try {
-    const body = req.body || {};
-    const eventType = body.event_type;
-
-    if (eventType === "payment.created") {
-      const paymentId = body.payment_id;
-      const payment = await axios.get(
-        `https://accept.paymob.com/api/ecommerce/payments/${paymentId}`,
-        {
-          headers: {
-            "Authorization": `Bearer ${process.env.PAYMOB_API_KEY}`
-          }
-        }
-      );
-
-      const paymentStatus = payment.data.status;
-      const orderId = payment.data.delivery_data.order_id;
-
-      if (paymentStatus === "completed") {
-        // Update the order status to paid
-        await Order.findByIdAndUpdate(orderId, { isPaid: true, paidAt: Date.now() });
-      }else await Order.findByIdAndUpdate(orderId, { isPaid: false, paidAt: Date.now() });
-    }
-  } catch (error) {
-    console.error("Error in webhookCheckout function:", error.message);
-  }
-};
-
-
 //
 //
 //
@@ -158,6 +127,7 @@ const webhookCheckout = async (req) => {
 // @route   GET /api/orders/:cartId
 // @access  Private/User
 exports.checkoutSession = asyncHandler(async (req, res, next) => {
+  // get current cartId
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
     return next(
@@ -165,17 +135,20 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     );
   }
 
+  // handle totalPrice if there is a coupon
   const cartPrice = cart.totalAfterDiscount
     ? cart.totalAfterDiscount
     : cart.totalCartPrice;
 
+  // paymob int
   try {
     const authResponse = await axios.post(
       "https://accept.paymob.com/api/auth/tokens",
-      { api_key: process.env.PAYMOB_API_KEY }
+      {
+        api_key: process.env.PAYMOB_API_KEY,
+      }
     );
     const authToken = authResponse.data.token;
-
     const orderResponse = await axios.post(
       "https://accept.paymob.com/api/ecommerce/orders",
       {
@@ -186,6 +159,7 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         items: [],
       }
     );
+    console.log(req.body.shippingAddress);
 
     const paymentKeyResponse = await axios.post(
       "https://accept.paymob.com/api/acceptance/payment_keys",
@@ -196,50 +170,15 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         order_id: orderResponse.data.id,
         billing_data: req.body.shippingAddress,
         currency: "EGP",
-        integration_id: process.env.YOUR_INTEGRATION_ID,
+        integration_id: process.env.YOUR_INTEGRATION_ID, // استبدل بمعرف التكامل الخاص بك
       }
     );
-
-    if (paymentKeyResponse.data.token) {
-      // Create the order
-      const order = await Order.create({
-        user: req.user._id,
-        cartItems: cart.products,
-        shippingAddress: req.body.shippingAddress,
-        totalOrderPrice: cartPrice,
-      });
-
-      if (!order) {
-        throw new ApiError("Failed to create order", 500);
-      }
-
-      // Decrement product quantity, increment sold
-      const bulkOption = cart.products.map((item) => ({
-        updateOne: {
-          filter: { _id: item.product },
-          update: { $inc: { quantity: -item.count, sold: +item.count } },
-        },
-      }));
-
-      await Product.bulkWrite(bulkOption, {});
-
-      // Clear cart
-      await Cart.findByIdAndDelete(req.params.cartId);
-
-      // Call webhookCheckout after creating the order
-      await webhookCheckout(req.body);
-
-      // Return success response with payment link
-      res.status(200).json({
-        success: true,
-        link: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token}`,
-      });
-    } else {
-      throw new ApiError("Failed to generate payment token", 500);
-    }
+    res.status(200).json({
+      link: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token}`,
+    });
   } catch (error) {
-    console.error("Error in checkoutSession function:", error.message);
-    next(new ApiError("Failed to complete checkout", 500));
+    console.error("checkOutSession fnc error", error.message);
+    return next(new ApiError("checkOutSession fnc error", 500));
   }
 });
 const createOrderCheckout = async (session) => {
@@ -293,3 +232,37 @@ const createOrderCheckout = async (session) => {
   }
 };
 
+exports.webhookCheckout = asyncHandler(async (req, res, next) => {
+  //New Test
+
+  const buffer = req.body;
+  const BodyToString = buffer.toString();
+
+  const jsonObject = JSON.parse(BodyToString);
+  console.log(" req.body======> ", jsonObject);
+
+  const { obj } = jsonObject;
+
+  if (obj.success) {
+    console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
+
+    // console.log("Transaction successful:", obj.id);
+    // ...
+    // createOrderCheckout()
+  } else {
+    console.log("Transaction failed or canceled:", obj.id);
+  }
+  const testBody = req.query;
+  const testBody2 = req.headers;
+  if (testBody) {
+    const testBodyToString = testBody.toString();
+    const testJsonObject = JSON.parse(testBodyToString);
+    console.log(" testBody======> ", testJsonObject);
+  }
+  if (testBody2) {
+    const testBodyToString2 = testBody2.toString();
+    const testJsonObject2 = JSON.parse(testBodyToString2);
+    console.log(" testBody2======> ", testJsonObject2);
+  }
+  res.status(200).send("Callback received");
+});
