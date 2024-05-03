@@ -115,53 +115,34 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 });
 
 
-exports.webhookCheckout = asyncHandler(async (req, res, next) => {
+const webhookCheckout = async (req) => {
   try {
-    const buffer = req.body;
-    const BodyToString = buffer.toString();
-    const jsonObject = JSON.parse(BodyToString);
-    console.log("req.body======> ", jsonObject);
+    const body = req.body || {};
+    const eventType = body.event_type;
 
-    const { obj } = jsonObject;
-    if (!obj) {
-      // لا يوجد كائن في الجسم، يتم إرسال استجابة غير صالحة
-      return res.status(400).send("Invalid request body");
-    }
+    if (eventType === "payment.created") {
+      const paymentId = body.payment_id;
+      const payment = await axios.get(
+        `https://accept.paymob.com/api/ecommerce/payments/${paymentId}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${process.env.PAYMOB_API_KEY}`
+          }
+        }
+      );
 
-    if (obj.success) {
-      console.log("Transaction successful, obj:", obj);
-      // إذا كان الدفع ناجحًا، يجب عليك تحديث حالة الطلب إلى مدفوع
-      const orderId = obj.id; // قم بالحصول على معرف الطلب من الإشعار
-      const order = await Order.findById(orderId);
-      if (!order) {
-        return next(new ApiError(`Order not found: ${orderId}`, 404));
-      }
-      order.isPaid = true;
-      order.paidAt = Date.now();
-      await order.save();
+      const paymentStatus = payment.data.status;
+      const orderId = payment.data.delivery_data.order_id;
 
-      // يمكنك هنا إرسال استجابة بنجاح
-      res.status(200).send("Payment successful");
-    } else {
-      console.log("Transaction failed or canceled:", obj.id);
-      // إذا فشل الدفع أو تم إلغاؤه، يمكنك تنفيذ الإجراء المناسب هنا
-      // على سبيل المثال، تحديث حالة الطلب لإظهار أن الدفع فشل
-      const orderId = obj.id; // قم بالحصول على معرف الطلب من الإشعار
-      const order = await Order.findById(orderId);
-      if (!order) {
-        return next(new ApiError(`Order not found: ${orderId}`, 404));
-      }
-      order.isPaid = false;
-      await order.save();
-
-      // يمكنك هنا إرسال استجابة بفشل الدفع
-      res.status(200).send("Payment failed or canceled");
+      if (paymentStatus === "completed") {
+        // Update the order status to paid
+        await Order.findByIdAndUpdate(orderId, { isPaid: true, paidAt: Date.now() });
+      }else await Order.findByIdAndUpdate(orderId, { isPaid: false, paidAt: Date.now() });
     }
   } catch (error) {
-    console.error("webhookCheckout function error:", error.message);
-    return next(new ApiError("webhookCheckout function error", 500));
+    console.error("Error in webhookCheckout function:", error.message);
   }
-});
+};
 
 
 //
