@@ -127,9 +127,6 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 // @route   GET /api/orders/:cartId
 // @access  Private/User
 exports.checkoutSession = asyncHandler(async (req, res, next) => {
-
-    const taxPrice = 0;
-  const shippingPrice = 0;
   // get current cartId
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
@@ -142,29 +139,6 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
   const cartPrice = cart.totalAfterDiscount
     ? cart.totalAfterDiscount
     : cart.totalCartPrice;
-
-    const order = await Order.create({
-      user: req.user._id,
-      cartItems: cart.products,
-      shippingAddress: req.body.shippingAddress,
-      totalOrderPrice: taxPrice + shippingPrice + cartPrice,
-    });
-
-
-    if (order) {
-      const bulkOption = cart.products.map((item) => ({
-        updateOne: {
-          filter: { _id: item.product },
-          update: { $inc: { quantity: -item.count, sold: +item.count } },
-        },
-      }));
-  
-      await Product.bulkWrite(bulkOption, {});
-  
-      // 5) Clear cart
-      await Cart.findByIdAndDelete(req.params.cartId);
-      console.log("del done");
-    }
 
   // paymob int
   try {
@@ -272,9 +246,9 @@ exports.webhookCheckout = asyncHandler(async (req, res, next) => {
   if (obj.success) {
     console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
 
-     console.log("Transaction successful:", obj.id);
-    
-     createOrderCheckout()
+    // console.log("Transaction successful:", obj.id);
+    // ...
+    createOrderCheckout()
   } else {
     console.log("Transaction failed or canceled:", obj.id);
   }
