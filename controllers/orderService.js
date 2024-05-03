@@ -127,7 +127,6 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 // @route   GET /api/orders/:cartId
 // @access  Private/User
 exports.checkoutSession = asyncHandler(async (req, res, next) => {
-  // get current cartId
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
     return next(
@@ -135,20 +134,17 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     );
   }
 
-  // handle totalPrice if there is a coupon
   const cartPrice = cart.totalAfterDiscount
     ? cart.totalAfterDiscount
     : cart.totalCartPrice;
 
-  // paymob int
   try {
     const authResponse = await axios.post(
       "https://accept.paymob.com/api/auth/tokens",
-      {
-        api_key: process.env.PAYMOB_API_KEY,
-      }
+      { api_key: process.env.PAYMOB_API_KEY }
     );
     const authToken = authResponse.data.token;
+
     const orderResponse = await axios.post(
       "https://accept.paymob.com/api/ecommerce/orders",
       {
@@ -159,7 +155,6 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         items: [],
       }
     );
-    console.log(req.body.shippingAddress);
 
     const paymentKeyResponse = await axios.post(
       "https://accept.paymob.com/api/acceptance/payment_keys",
@@ -170,19 +165,38 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         order_id: orderResponse.data.id,
         billing_data: req.body.shippingAddress,
         currency: "EGP",
-        integration_id: process.env.YOUR_INTEGRATION_ID, // استبدل بمعرف التكامل الخاص بك
+        integration_id: process.env.YOUR_INTEGRATION_ID,
       }
     );
 
     if (paymentKeyResponse.data.token) {
-      // Create the order checkout session
-      await createOrderCheckout(req.body);
+      // Create the order
+      const order = await Order.create({
+        user: req.user._id,
+        cartItems: cart.products,
+        shippingAddress: req.body.shippingAddress,
+        totalOrderPrice: cartPrice,
+      });
 
-      // Call webhookCheckout after creating the order
-      await webhookCheckout(req.body);
+      if (!order) {
+        throw new ApiError("Failed to create order", 500);
+      }
+
+      // Decrement product quantity, increment sold
+      const bulkOption = cart.products.map((item) => ({
+        updateOne: {
+          filter: { _id: item.product },
+          update: { $inc: { quantity: -item.count, sold: +item.count } },
+        },
+      }));
+
+      await Product.bulkWrite(bulkOption, {});
 
       // Clear cart
       await Cart.findByIdAndDelete(req.params.cartId);
+
+      // Call webhookCheckout after creating the order
+      await webhookCheckout(req.body);
 
       // Return success response with payment link
       res.status(200).json({
@@ -190,12 +204,11 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         link: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token}`,
       });
     } else {
-      // Return error response if payment token is not received
-      return next(new ApiError("Failed to generate payment token", 500));
+      throw new ApiError("Failed to generate payment token", 500);
     }
   } catch (error) {
-    console.error("checkOutSession fnc error", error.message);
-    return next(new ApiError("checkOutSession fnc error", 500));
+    console.error("Error in checkoutSession function:", error.message);
+    next(new ApiError("Failed to complete checkout", 500));
   }
 });
 const createOrderCheckout = async (session) => {
