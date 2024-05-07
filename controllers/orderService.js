@@ -22,7 +22,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
     return next(
-      new ApiError(`There is no cart for this user :${req.user._id}`, 404)
+      new ApiError(There is no cart for this user :${req.user._id}, 404)
     );
   }
 
@@ -81,11 +81,11 @@ exports.updateOrderToPaid = asyncHandler(async (req, res, next) => {
 
   if (!order) {
     return next(
-      new ApiError(`There is no order for this id: ${req.params.id}`, 404)
+      new ApiError(There is no order for this id: ${req.params.id}, 404)
     );
   }
 
-  order.isPaid = true;
+  order.isPaid = !order.isPaid;
   order.paidAt = Date.now();
 
   const updatedOrder = await order.save();
@@ -103,44 +103,34 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 
   if (!order) {
     return next(
-      new ApiError(`There is no order for this id: ${req.params.id}`, 404)
+      new ApiError(There is no order for this id: ${req.params.id}, 404)
     );
   }
 
-  order.isDelivered = true;
+  order.isDelivered = !order.isDelivered;
   order.deliveredAt = Date.now();
 
   const updatedOrder = await order.save();
   res.status(200).json({ status: "Success", data: updatedOrder });
 });
+exports.deleteOrder = factory.deleteOne(Order);
 
-//
-//
-//
-//
-//
-//
-//
-//
-// From here I started working on the code. Do not change anything in the previous code that has nothing to do with Paymob
 // @desc    Create order checkout session
 // @route   GET /api/orders/:cartId
 // @access  Private/User
 exports.checkoutSession = asyncHandler(async (req, res, next) => {
-  // get current cartId
+  // 1) الحصول على سلة المستخدم الحالية
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
     return next(
-      new ApiError(`لا يوجد سلة لهذا المستخدم: ${req.user._id}`, 404)
+      new ApiError(لا يوجد سلة لهذا المستخدم: ${req.user._id}, 404)
     );
   }
 
-  // handle totalPrice if there is a coupon
+  // 2) الحصول على سعر السلة، والتحقق مما إذا كان هناك خصم متاح
   const cartPrice = cart.totalAfterDiscount
     ? cart.totalAfterDiscount
-    : cart.totalCartPrice;
-
-  // paymob int
+    : cart.totalCartPrice; // 3) إنشاء مفتاح دفع Paymob
   try {
     const authResponse = await axios.post(
       "https://accept.paymob.com/api/auth/tokens",
@@ -159,7 +149,6 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         items: [],
       }
     );
-    console.log(req.body.shippingAddress);
 
     const paymentKeyResponse = await axios.post(
       "https://accept.paymob.com/api/acceptance/payment_keys",
@@ -173,42 +162,37 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
         integration_id: process.env.YOUR_INTEGRATION_ID, // استبدل بمعرف التكامل الخاص بك
       }
     );
+    // 4) إعادة توجيه المستخدم إلى صفحة الدفع في Paymob
     res.status(200).json({
-      link: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token}`,
+      link: https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token},
     });
   } catch (error) {
-    console.error("checkOutSession fnc error", error.message);
-    return next(new ApiError("checkOutSession fnc error", 500));
+    console.error("خطأ في إنشاء دفع Paymob:", error.message);
+    return next(new ApiError("خطأ في إنشاء دفع Paymob", 500));
   }
 });
+
 const createOrderCheckout = async (session) => {
-  //  get data from session
-  const cartId = session.client_reference_id;
-  const checkoutAmount = session.display_items[0].amount / 100;
+  // 1) الحصول على البيانات المطلوبة من الجلسة
+  const cartId = session.payment_key_claims.billing_data.apartment;
+  const userEmail = session.payment_key_claims.billing_data.email;
+  const checkoutAmount = session.amount_cents / 100;
+  const billingData = session.payment_key_claims.billing_data;
   // const shippingAddress = session.metadata;
 
-  // get user cart and user data from session
+  // 2) الحصول على سلة المنتجات والمستخدم
   const cart = await Cart.findById(cartId);
-  const user = await User.findOne({ email: session.customer_email });
+  const user = await User.findOne({ email: userEmail });
 
-  //  create order
+  // 3) إنشاء الطلب
   const order = await Order.create({
     user: user._id,
     cartItems: cart.products,
-    billing_data: {
-      apartment: "803",
-      email: "claudette09@exa.com",
-      floor: "42",
-      first_name: "Clifford",
-      street: "Ethan Land",
-      building: "8028",
-      phone_number: "+86(8)9135210487",
-      shipping_method: "PKG",
-      postal_code: "01898",
-      city: "Jaskolskiburgh",
-      country: "CR",
-      last_name: "Nicolas",
-      state: "Utah",
+    shippingAddress: {
+      details: billingData.street,
+      phone: billingData.phone_number,
+      city: billingData.city,
+      postalCode: billingData.postal_code,
     },
     totalOrderPrice: checkoutAmount,
     paymentMethodType: "card",
@@ -216,7 +200,8 @@ const createOrderCheckout = async (session) => {
     paidAt: Date.now(),
   });
 
-  //  order Handle
+  // 4) بعد إنشاء الطلب، قم بتخفيض كمية المنتج وزيادة الكمية المباعة
+  // يؤدي إلى عمليات كتابة متعددة مع مراقبة ترتيب التنفيذ.
   if (order) {
     const bulkOption = cart.products.map((item) => ({
       updateOne: {
@@ -227,7 +212,7 @@ const createOrderCheckout = async (session) => {
 
     await Product.bulkWrite(bulkOption, {});
 
-    // Delete Cart
+    // 5) مسح السلة
     await Cart.findByIdAndDelete(cart._id);
   }
 };
@@ -239,30 +224,20 @@ exports.webhookCheckout = asyncHandler(async (req, res, next) => {
   const BodyToString = buffer.toString();
 
   const jsonObject = JSON.parse(BodyToString);
-  console.log(" req.body======> ", jsonObject);
+  // console.log(" req.body======> ", jsonObject);
 
   const { obj } = jsonObject;
 
   if (obj.success) {
-    console.log("Transaction successful the obj:=>>>>>>>>>>>>", obj);
-
-    // console.log("Transaction successful:", obj.id);
-    // ...
-    // createOrderCheckout()
+    console.log("Transaction successful");
+    // console.log(
+    //   "Transaction successful payment_key_claims:",
+    //   obj.payment_key_claims.billing_data
+    // );
+    createOrderCheckout(obj);
   } else {
     console.log("Transaction failed or canceled:", obj.id);
   }
-  const testBody = req.query;
-  const testBody2 = req.headers;
-  if (testBody) {
-    const testBodyToString = testBody.toString();
-    const testJsonObject = JSON.parse(testBodyToString);
-    console.log(" testBody======> ", testJsonObject);
-  }
-  if (testBody2) {
-    const testBodyToString2 = testBody2.toString();
-    const testJsonObject2 = JSON.parse(testBodyToString2);
-    console.log(" testBody2======> ", testJsonObject2);
-  }
-  res.status(200).send("Callback received");
+
+  res.status(200).json({ msg: "Done", data: res.data });
 });
