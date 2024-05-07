@@ -1,4 +1,3 @@
-
 const asyncHandler = require("express-async-handler");
 const crypto = require("crypto");
 const axios = require("axios");
@@ -23,7 +22,7 @@ exports.createCashOrder = asyncHandler(async (req, res, next) => {
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
     return next(
-      new ApiError(There is no cart for this user :${req.user._id}, 404)
+      new ApiError(`There is no cart for this user :${req.user._id}`, 404)
     );
   }
 
@@ -82,7 +81,7 @@ exports.updateOrderToPaid = asyncHandler(async (req, res, next) => {
 
   if (!order) {
     return next(
-      new ApiError(There is no order for this id: ${req.params.id}, 404)
+      new ApiError(`There is no order for this id: ${req.params.id}`, 404)
     );
   }
 
@@ -104,7 +103,7 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 
   if (!order) {
     return next(
-      new ApiError(There is no order for this id: ${req.params.id}, 404)
+      new ApiError(`There is no order for this id: ${req.params.id}`, 404)
     );
   }
 
@@ -124,7 +123,7 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
   const cart = await Cart.findById(req.params.cartId);
   if (!cart) {
     return next(
-      new ApiError(لا يوجد سلة لهذا المستخدم: ${req.user._id}, 404)
+      new ApiError(`لا يوجد سلة لهذا المستخدم: ${req.user._id}`, 404)
     );
   }
 
@@ -132,7 +131,8 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
   const cartPrice = cart.totalAfterDiscount
     ? cart.totalAfterDiscount
     : cart.totalCartPrice;
-// 3) إنشاء مفتاح دفع Paymob
+
+  // 3) إنشاء مفتاح دفع Paymob
   try {
     const authResponse = await axios.post(
       "https://accept.paymob.com/api/auth/tokens",
@@ -166,7 +166,7 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
     );
     // 4) إعادة توجيه المستخدم إلى صفحة الدفع في Paymob
     res.status(200).json({
-      link: https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token},
+      link: `https://accept.paymob.com/api/acceptance/iframes/${process.env.PAYMOB_IFRAME}?payment_token=${paymentKeyResponse.data.token}`,
     });
   } catch (error) {
     console.error("خطأ في إنشاء دفع Paymob:", error.message);
