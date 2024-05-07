@@ -1,3 +1,4 @@
+
 const asyncHandler = require("express-async-handler");
 const crypto = require("crypto");
 const axios = require("axios");
@@ -130,7 +131,8 @@ exports.checkoutSession = asyncHandler(async (req, res, next) => {
   // 2) الحصول على سعر السلة، والتحقق مما إذا كان هناك خصم متاح
   const cartPrice = cart.totalAfterDiscount
     ? cart.totalAfterDiscount
-    : cart.totalCartPrice; // 3) إنشاء مفتاح دفع Paymob
+    : cart.totalCartPrice;
+// 3) إنشاء مفتاح دفع Paymob
   try {
     const authResponse = await axios.post(
       "https://accept.paymob.com/api/auth/tokens",
