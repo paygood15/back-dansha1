@@ -113,6 +113,26 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
   const updatedOrder = await order.save();
   res.status(200).json({ status: "Success", data: updatedOrder });
 });
+
+// @desc    Update order to seen
+
+exports.updateOrderToSeen = asyncHandler(async (req, res, next) => {
+  const order = await Order.findById(req.params.id);
+
+  if (!order) {
+    return next(
+      new ApiError(`There is no order for this id: ${req.params.id}`, 404)
+    );
+  }
+
+  order.seen = !order.seen;
+  
+
+  const updatedOrder = await order.save();
+  res.status(200).json({ status: "Success", data: updatedOrder });
+});
+
+
 exports.deleteOrder = factory.deleteOne(Order);
 
 // @desc    Delete order by ID
