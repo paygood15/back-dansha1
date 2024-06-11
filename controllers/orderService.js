@@ -115,6 +115,20 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 });
 exports.deleteOrder = factory.deleteOne(Order);
 
+// @desc    Delete order by ID
+// @route   DELETE /api/orders/:id
+// @access  Private/Admin
+exports.deleteOrderById = asyncHandler(async (req, res, next) => {
+  const order = await Order.findById(req.params.id);
+
+  if (!order) {
+    return next(new ApiError(`There is no order with id: ${req.params.id}`, 404));
+  }
+
+  await order.remove();
+  res.status(200).json({ status: "Success", message: "Order deleted successfully" });
+});
+
 // @desc    Create order checkout session
 // @route   GET /api/orders/:cartId
 // @access  Private/User
