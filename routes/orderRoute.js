@@ -31,7 +31,7 @@ router
 
 router
   .route('/:id')
-  .get(authController.allowedTo('user', 'admin', 'manager'), getSpecificOrder);
+  .get(authController.allowedTo('user', 'admin', 'manager'), getSpecificOrder)
   .delete(authController.allowedTo('admin'), deleteOrderById);
 
 router.put('/:id/pay', updateOrderToPaid);
