@@ -8,6 +8,7 @@ const {
   updateOrderToDelivered,
   checkoutSession,
   deleteOrderById,
+   updateOrderToSeen,
 } = require('../controllers/orderService');
 
 const authController = require('../controllers/authController');
@@ -33,7 +34,7 @@ router
   .route('/:id')
   .get(authController.allowedTo('user', 'admin', 'manager'), getSpecificOrder)
   .delete(authController.allowedTo('admin'), deleteOrderById);
-
+router.put('/:id/seen', updateOrderToSeen);
 router.put('/:id/pay', updateOrderToPaid);
 router.put('/:id/deliver', updateOrderToDelivered);
 
