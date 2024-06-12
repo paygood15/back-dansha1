@@ -116,17 +116,16 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 
 // @desc    Update order to seen
 
-exports.updateOrderToSeen = asyncHandler(async (req, res, next) => {
+exports.updateOrderToSeen =asyncHandler(async (req, res, next) => {
 
-  const anySeenTrue = await Order.exists({ seen: true });
+  const anySeenFalse = await Order.exists({ seen: false });
 
-  let newSeenValue;
-  if (anySeenTrue) {
-    newSeenValue = false;
-  } else {
-    newSeenValue = true;
+  if (!anySeenFalse) {
+    return next(new ApiError("All orders have already been marked as seen", 400));
   }
-  const orders = await Order.updateMany({}, { $set: { seen: newSeenValue } });
+
+  // تحديث جميع الأوامر ذات القيمة seen تساوي false إلى true
+  const orders = await Order.updateMany({ seen: false }, { $set: { seen: true } });
 
   if (orders.nModified === 0) {
     return next(new ApiError("No orders were updated", 404));
