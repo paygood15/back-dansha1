@@ -117,9 +117,16 @@ exports.updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 // @desc    Update order to seen
 
 exports.updateOrderToSeen = asyncHandler(async (req, res, next) => {
-  const orders = await Order.updateMany({}, [
-    { $set: { seen: { $not: "$seen" } } }
-  ]);
+
+  const anySeenTrue = await Order.exists({ seen: true });
+
+  let newSeenValue;
+  if (anySeenTrue) {
+    newSeenValue = false;
+  } else {
+    newSeenValue = true;
+  }
+  const orders = await Order.updateMany({}, { $set: { seen: newSeenValue } });
 
   if (orders.nModified === 0) {
     return next(new ApiError("No orders were updated", 404));
