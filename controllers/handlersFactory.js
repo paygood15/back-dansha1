@@ -81,6 +81,16 @@ exports.updateOne = (Model) =>
   });
 
 
+exports.createOne = (Model) =>
+  asyncHandler(async (req, res) => {
+    const newDoc = await Model.create(req.body);
+
+    if (newDoc.constructor.modelName === 'Product') {
+      setImageUrl(newDoc);
+    }
+    res.status(201).json({ data: newDoc });
+  });
+
 exports.getOne = (Model, populateOpts) =>
   asyncHandler(async (req, res, next) => {
     const { id } = req.params;
