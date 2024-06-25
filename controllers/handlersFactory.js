@@ -38,30 +38,30 @@ exports.deleteOne = (Model) =>
 
 exports.updateOne = (Model) =>
   asyncHandler(async (req, res, next) => {
-    // جلب الوثيقة الحالية
+    // Fetch the existing document
     const existingDocument = await Model.findById(req.params.id);
 
     if (!existingDocument) {
-      return next(
-        new ApiError(`لا يوجد وثيقة بهذا المعرف: ${req.params.id}`, 404)
-      );
+      return next(new ApiError(`No document found for this id: ${req.params.id}`, 404));
     }
 
-    // دمج بيانات الوثيقة الحالية مع البيانات الجديدة
+    // Merge existing document data with the new data, handling image fields
     const updateData = { ...req.body };
-    if (!req.body.imageCover) {
+    if (!updateData.imageCover) {
+      // If imageCover is empty, retain the existing value
       updateData.imageCover = existingDocument.imageCover;
     }
-    if (!req.body.images) {
+    if (!updateData.images) {
+      // If images is empty, retain the existing array
       updateData.images = existingDocument.images;
     }
 
-    // إجراء التحديث بالبيانات المدمجة
+    // Perform the update with merged data
     const document = await Model.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
     });
 
-    // لتحفيز حدث 'save' عند تحديث الوثيقة
+    // To trigger 'save' event when update document
     const doc = await document.save();
 
     if (doc.constructor.modelName === 'Product') {
