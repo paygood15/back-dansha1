@@ -36,30 +36,18 @@ exports.deleteOne = (Model) =>
     res.status(204).send();
   });
 
+
 exports.updateOne = (Model) =>
   asyncHandler(async (req, res, next) => {
-    // Fetch the existing document
-    const existingDocument = await Model.findById(req.params.id);
+    const document = await Model.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
 
-    if (!existingDocument) {
+    if (!document) {
       return next(
         new ApiError(`No document found for this id: ${req.params.id}`, 404)
       );
     }
-
-    // Merge existing document data with the new data
-    const updateData = { ...req.body };
-    if (!req.body.imageCover) {
-      updateData.imageCover = existingDocument.imageCover;
-    }
-    if (!req.body.images) {
-      updateData.images = existingDocument.images;
-    }
-
-    // Perform the update with merged data
-    const document = await Model.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-    });
 
     // To trigger 'save' event when update document
     const doc = await document.save();
