@@ -42,17 +42,15 @@ exports.updateOne = (Model) =>
     const existingDocument = await Model.findById(req.params.id);
 
     if (!existingDocument) {
-      return next(
-        new ApiError(`No document found for this id: ${req.params.id}`, 404)
-      );
+      return next(new ApiError(`No document found for this id: ${req.params.id}`, 404));
     }
 
-    // Merge existing document data with the new data
+    // Merge existing document data with the new data, handling image fields
     const updateData = { ...req.body };
-    if (!req.body.imageCover) {
+    if (!updateData.imageCover) {
       updateData.imageCover = existingDocument.imageCover;
     }
-    if (!req.body.images) {
+    if (!updateData.images) {
       updateData.images = existingDocument.images;
     }
 
