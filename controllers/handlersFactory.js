@@ -38,20 +38,6 @@ exports.deleteOne = (Model) =>
 
 exports.updateOne = (Model) =>
   asyncHandler(async (req, res, next) => {
-    // Retrieve the current document to check the existing images
-    const currentDoc = await Model.findById(req.params.id);
-
-    if (!currentDoc) {
-      return next(
-        new ApiError(`No document found for this id: ${req.params.id}`, 404)
-      );
-    }
-
-    // If no images are provided in the request body, keep the existing images
-    if (!req.body.images) {
-      req.body.images = currentDoc.images;
-    }
-
     const document = await Model.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
