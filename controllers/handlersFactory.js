@@ -38,47 +38,48 @@ exports.deleteOne = (Model) =>
 
 exports.updateOne = (Model) =>
   asyncHandler(async (req, res, next) => {
-    // Fetch the existing document
+    // جلب الوثيقة الحالية
     const existingDocument = await Model.findById(req.params.id);
 
     if (!existingDocument) {
-      return next(new ApiError(`No document found for this id: ${req.params.id}`, 404));
+      return next(
+        new ApiError(`لا يوجد وثيقة بهذا المعرف: ${req.params.id}`, 404)
+      );
     }
 
-    // Merge existing document data with the new data, handling image fields
+    // دمج بيانات الوثيقة الحالية مع البيانات الجديدة
     const updateData = { ...req.body };
-    if (!updateData.imageCover) {
-      // If imageCover is empty, retain the existing value
+    if (!req.body.imageCover) {
       updateData.imageCover = existingDocument.imageCover;
     }
-    if (!updateData.images) {
-      // If images is empty, retain the existing array
+    if (!req.body.images) {
+      updateData.images = existingDocument.images;
+    } else if (req.body.images.length === 0) {
       updateData.images = existingDocument.images;
     }
 
-    // Perform the update with merged data
+    // إجراء التحديث بالبيانات المدمجة
     const document = await Model.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
+      runValidators: true,
     });
 
-    // To trigger 'save' event when update document
-    const doc = await document.save();
-
-    if (doc.constructor.modelName === 'Product') {
-      setImageUrl(doc);
+    if (!document) {
+      return next(
+        new ApiError(`لا يوجد وثيقة بهذا المعرف: ${req.params.id}`, 404)
+      );
     }
-    res.status(200).json({ data: doc });
+
+    // لتحفيز حدث 'save' عند تحديث الوثيقة
+    await document.save();
+
+    if (document.constructor.modelName === 'Product') {
+      setImageUrl(document);
+    }
+
+    res.status(200).json({ data: document });
   });
 
-exports.createOne = (Model) =>
-  asyncHandler(async (req, res) => {
-    const newDoc = await Model.create(req.body);
-
-    if (newDoc.constructor.modelName === 'Product') {
-      setImageUrl(newDoc);
-    }
-    res.status(201).json({ data: newDoc });
-  });
 
 exports.getOne = (Model, populateOpts) =>
   asyncHandler(async (req, res, next) => {
