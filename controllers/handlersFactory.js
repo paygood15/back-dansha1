@@ -36,7 +36,7 @@ exports.deleteOne = (Model) =>
     res.status(204).send();
   });
 
-xports.updateOne = (Model) =>
+exports.updateOne = (Model) =>
   asyncHandler(async (req, res, next) => {
     // Fetch the existing document
     const existingDocument = await Model.findById(req.params.id);
